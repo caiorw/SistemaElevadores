@@ -1,24 +1,56 @@
 .include	"labels.asm"
-.globl		elevador_1
+.globl		elevador1, andar1, fluxo1
 .data
 	digitos:	.byte 63,6,91,79,102,109,125,7,127,111	#guarda valores que acendem o display de 7 segmentos em ordem (0 a 9)
+	chegada:	.asciiz	"Elevador 1 parou no andar: "
 	pula:		.asciiz	"\n"
 	andar1:		.word 0
+	fluxo1:		.word 0	#-1 = para baixo, 0 = parado, 1 = para cima
 .text
-elevador_1:
-	#precisa avaliar alguns endereços de memória que dizem o estado do outro elevador (critérios de economia de energia do pdf)
+elevador1:
+	lw	$t0, fluxo1
+	beq	$t0, $zero, elevador1	#espera o controlador mudar o fluxo (enquanto 0 está parado)
 	
-	j elevador_1
+	move	$s0, $a0	#destino do elevador
+	
+	bgt	$t0, $zero, subir_e1
+	blt	$t0, $zero, descer_e1
+	
+	j elevador1
 
 #recebe quantos andares precisa subir
-subir:
+subir_e1:
+	lw	$t1, andar1
 	jal	tempo_espera	#fica dentro de um for do número de andares
-	jr	$ra
+	addi	$t1, $t1, 1
+	bne	$t1, $s0, subir_e1
+	li	$v0, 4
+	la	$a0, chegada
+	syscall
+	li	$v0, 1
+	move	$a0, t1
+	syscall
+	li	$v0, 4
+	la	$a0, pula
+	syscall
+	j	elevador1
 
 #recebe quantos andares precisa descer
-descer:
+descer_e1:
+	lw	$t1, andar1
 	jal	tempo_espera	#fica dentro de um for do número de andares
-	jr	$ra
+	addi	$t1, $t1, -1
+	bne	$t1, $s0, descer_e1
+	li	$v0, 4
+	la	$a0, chegada
+	syscall
+	li	$v0, 1
+	move	$a0, t1
+	syscall
+	li	$v0, 4
+	la	$a0, pula
+	syscall
+	j	elevador1
 
 #equivalente a wait(4 segundos)
 tempo_espera:
