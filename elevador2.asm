@@ -9,7 +9,7 @@
 	# destino2: definido em controlador.asm (só leitura aqui).
 .text
 elevador2:
-	li	$s1, 0xFFFF0011		#s1 = endereço do display da esquerda
+	li	$s1, 0xFFFF0010		#s1 = endereço do display da direita
 	jal	mostrar_andar		#mostra o andar inicial (uma vez só)
 
 espera_fluxo:
