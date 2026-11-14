@@ -18,7 +18,7 @@
 .text
 controle:
 	# @todo:
-	# - coleta está mais perto de andar1 ou andar2?
+	# - coleta está mais perto de andar1 ou andar2? check
 	# - se andar1: andar1 = coleta e fluxo1 = fluxo. quando fluxo1 == 0, andar1 = entrega
 	# - se andar2: andar2 = coleta e fluxo2 = fluxo. quando fluxo2 == 0, andar2 = entrega
 	# precisamos de lista???
@@ -31,10 +31,41 @@ controle:
 	#	sim: reordena lista em ordem crescente/descrescente (subindo ou descendo)
 	#	não: adiciona final da lista
 	lw	$s0, coleta
+	
+	lw	$t0, tamanholista1
+	bne	$t0, $zero, conferelista1	#tem coisa na lista
 	lw	$s1, andar1
+	j continuaconfere1
+conferelista1:
+	la	$t1, lista1
+	sll	$t0, $t0, 2		#multiplica a quantidade de itens na lista por 4
+	add	$t1, $t1, $t0
+	lw	$s1, 0($t1)		#acessa o último item da lista
+	#s1 será o andar para comparação do elevador 1
+continuaconfere1:
+
+	lw	$t0, tamanholista2
+	bne	$t0, $zero, conferelista2	#tem coisa na lista
 	lw	$s2, andar2
+	j continuaconfere2
+conferelista1:
+	la	$t1, lista2
+	sll	$t0, $t0, 2		#multiplica a quantidade de itens na lista por 4
+	add	$t1, $t1, $t0
+	lw	$s2, 0($t1)		#acessa o último item da lista
+	#s2 será o andar para comparação do elevador 1
+continuaconfere2:
 	
-	sub	$t0, 
+	sub	$s1, $s1, $s0
+	abs	$s1, $s1
+	sub	$s2, $s2, $s0
+	abs	$s2, $s2
 	
+	blt	$s2, $s1, mandaelevador2
+mandaelevador1:
+	sw	$s0, destino1
+	
+mandaelevador2:
+	sw	$s0, destino2
 	
 	j controle
