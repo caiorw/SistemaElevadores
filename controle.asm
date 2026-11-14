@@ -30,6 +30,11 @@ controle:
 	# segue o fluxo? 
 	#	sim: reordena lista em ordem crescente/descrescente (subindo ou descendo)
 	#	não: adiciona final da lista
+looppedido:
+	lw	$t0, pronto
+	beq	$t0, $zero, looppedido		#enquanto o teclado não indicar que há um pedido a ser processado
+	sw	$zero, pronto
+	
 	lw	$s0, coleta
 	
 	lw	$t0, tamanholista1
@@ -53,7 +58,7 @@ conferelista1:
 	sll	$t0, $t0, 2		#multiplica a quantidade de itens na lista por 4
 	add	$t1, $t1, $t0
 	lw	$s2, 0($t1)		#acessa o último item da lista
-	#s2 será o andar para comparação do elevador 1
+	#s2 será o andar para comparação do elevador 2
 continuaconfere2:
 	
 	sub	$s1, $s1, $s0

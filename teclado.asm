@@ -1,5 +1,5 @@
 .include	"labels.asm"
-.globl		teclado, coleta, fluxo, entrega
+.globl		teclado, coleta, fluxo, entrega, pronto
 .data
 	codigos_andar:	.byte 0x11, 0x21, 0x41, 0x81, 0x12, 0x22, 0x42, 0x82	# teclas 0..7
 	aviso_txt:	.asciiz	"Teclas invalidas, tente novamente.\n"
@@ -17,8 +17,12 @@
 	coleta:		.word 0
 	fluxo:		.word 0
 	entrega:	.word 0
+	pronto:		.word 0
 .text
 teclado:
+	lw	$t0, pronto
+	bne	$t0, $zero, teclado	#enquanto o controle não informar que o pedido foi processado
+
 	la	$a0, pede_origem
 	jal	imprime
 
@@ -43,7 +47,7 @@ segunda_tecla:
 	li 	$t1, 0x18
 	beq	$v0, $t0, escolheu_baixo
 	beq	$v0, $t1, escolheu_cima
-	la	$a0, nao_direcao	# nao e c nem b: avisa e espera de novo
+	la	$a0, nao_direcao	# nao eh c nem b: avisa e espera de novo
 	jal	imprime
 	j 	segunda_tecla
 
@@ -54,13 +58,13 @@ baixo:
 	jal 	esperar_tecla_nova
 	move 	$a0, $v0
 	jal 	codigo_para_andar
-	bltz	$v0, baixo_nao_andar	#nao e numero de 0 a 7
+	bltz	$v0, baixo_nao_andar	#nao eh numero de 0 a 7
 	move	$s2, $v0		# $s2 = destino (guardado antes de imprimir, que estraga o $v0)
 	sub	$t0, $s0, $s2	# se (primeira tecla - segunda) for negativo ou igual a zero, não é válido (segunda tecla é maior doq primeira)
 	li	$s1, -1			# $s1 = fluxo
 	bgtz	$t0, viagem
 	jal 	aviso
-	j 	controle
+	j 	teclado
 baixo_nao_andar:
 	la	$a0, nao_andar
 	jal	imprime
@@ -73,13 +77,13 @@ cima:
 	jal 	esperar_tecla_nova
 	move 	$a0, $v0
 	jal 	codigo_para_andar
-	bltz	$v0, cima_nao_andar	#nao e numero de 0 a 7
+	bltz	$v0, cima_nao_andar	#nao eh numero de 0 a 7
 	move	$s2, $v0		# $s2 = destino (guardado antes de imprimir, que estraga o $v0)
 	sub	$t0, $s0, $s2	# se (primeira tecla - segunda) for positiva ou igual a zero, não é válido (segunda tecla é menor doq primeira)
 	li	$s1, 1			# $s1 = fluxo
 	bltz	$t0, viagem
 	jal 	aviso
-	j 	controle
+	j 	teclado
 cima_nao_andar:
 	la	$a0, nao_andar
 	jal	imprime
@@ -110,6 +114,9 @@ viagem:
 	sw	$s0, coleta
 	sw	$s1, fluxo
 	sw	$s2, entrega
+
+	li	$t0, 1
+	sw	$t0, pronto
 
 	j teclado
 
@@ -167,7 +174,6 @@ cpa_achou:
 cpa_nao_achou:
 	li	$v0, -1
 	jr	$ra
-
 
 aviso:
 	li	$v0, 4
