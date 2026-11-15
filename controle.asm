@@ -21,7 +21,6 @@ controle:
 	# - coleta está mais perto de andar1 ou andar2? check
 	# - se andar1: andar1 = coleta e fluxo1 = fluxo. quando fluxo1 == 0, andar1 = entrega
 	# - se andar2: andar2 = coleta e fluxo2 = fluxo. quando fluxo2 == 0, andar2 = entrega
-	# precisamos de lista???
 	
 	# duas listas: uma para cada elevador
 	# andares ordenados em ordem de atendimento: qual elevador alocar basta ver o último item da lista
@@ -35,42 +34,136 @@ looppedido:
 	beq	$t0, $zero, looppedido		#enquanto o teclado não indicar que há um pedido a ser processado
 	sw	$zero, pronto
 	
+	#qual a última parada do elevador?
+	#	- a coleta está no meio do caminho? o fluxo do pedido coincide com o do elevador?
+	#	- se o fluxo do pedido não coincide com o do elevador, a última parada coincide com a coleta?
+	#	
+	
 	lw	$s0, coleta
+	lw	$s1, entrega
+	lw	$s2, fluxo
 	
-	lw	$t0, tamanholista1
-	bne	$t0, $zero, conferelista1	#tem coisa na lista
-	lw	$s1, andar1
-	j continuaconfere1
-conferelista1:
-	la	$t1, lista1
-	sll	$t0, $t0, 2		#multiplica a quantidade de itens na lista por 4
-	add	$t1, $t1, $t0
-	lw	$s1, 0($t1)		#acessa o último item da lista
-	#s1 será o andar para comparação do elevador 1
-continuaconfere1:
+	lw	$t0, fluxo1
+	lw	$t1, fluxo2
+	bne	$t1, $zero, avaliaelevador1
+	bne	$t0, $zero, avaliaelevador1
+	#chega aqui se ambos elevadores estão parados
+	lw	$t0, andar1
+	sub	$t0, $t0, $s0
+	abs	$t0, $t0			#distância do elevador 1 para a coleta
+	
+	lw	$t1, andar2
+	sub	$t1, $t1, $s0
+	abs	$t1, $t1			#distância do elevador 2 para a coleta
+	
+	blt	$t1, $t0, atribuielevador2
+	j	atribuielevador1
+	
+avaliaelevador1:
+	lw	$t0, fluxo1
+	lw	$t1, andar1
+	add	$t2, $t0, $s2			#t2 = fluxo1 + fluxo
+	beq	$t2, $zero, avaliaelevador2	#se os fluxos são inversos, E1 não pode ser alocado 
+						#@TODO -> e se o último destino coincidir com a coleta? avaliar isso?
+	mulo	$t0, $t0, $s0
+	add	$t0, $t0, $t1			#t0 = andar1 + (coleta * fluxo1)
+	bgt	$t0, $zero, atribuielevador1	#se positivo, a coleta está no caminho do elevador
+avaliaelevador2:
+	lw	$t0, fluxo2
+	lw	$t1, andar2
+	mulo	$t0, $t0, $s0
+	add	$t0, $t0, $t1			#t0 = andar2 + (coleta * fluxo2)
+	bgt	$t0, $zero, atribuielevador2	#se positivo, a coleta está no caminho do elevador
 
-	lw	$t0, tamanholista2
-	bne	$t0, $zero, conferelista2	#tem coisa na lista
-	lw	$s2, andar2
-	j continuaconfere2
-conferelista1:
-	la	$t1, lista2
-	sll	$t0, $t0, 2		#multiplica a quantidade de itens na lista por 4
-	add	$t1, $t1, $t0
-	lw	$s2, 0($t1)		#acessa o último item da lista
-	#s2 será o andar para comparação do elevador 2
-continuaconfere2:
+# Se chegou aqui, sabemos do seguinte:
+# I- O fluxo do pedido é contrário ao fluxo do elevador 1 OU o elevador 1 já passou do andar da coleta
+# II- O elevador 2 já passou do andar da coleta
+# A execução continuará a partir daqui, e o elevador 1 receberá este pedido
+# OBS: não verificamos se o fluxo do pedido é contrário ao fluxo do elevador 2 pois o pedido precisa ser atendido por algum deles
+ 
+atribuielevador1:
+	la	$s3, lista1
+	lw	$s4, tamanholista1
 	
-	sub	$s1, $s1, $s0
-	abs	$s1, $s1
-	sub	$s2, $s2, $s0
-	abs	$s2, $s2
+	lw	$t2, fluxo1
+	blt	$t2, $zero, lista1decrescente
+lista1crescente:
+	move	$a0, $s3		#a0 recebe o endereço da lista
+	move	$a1, $s4		#a1 recebe o tamanho da lista
+	move	$a3, $s0		#a3 recebe o elemento a ser incluído na lista
+	jal	adicionalistacrescente
+	move	$a3, $s1
+	jal	adicionalistacrescente
 	
-	blt	$s2, $s1, mandaelevador2
-mandaelevador1:
-	sw	$s0, destino1
+	j	pedidoatendido
+lista1decrescente:
+	move	$a0, $s3
+	move	$a1, $s4
+	move	$a3, $s0
+	jal	adicionalistadecrescente
+	move	$a3, $s1
+	jal	adicionalistadecrescente
 	
-mandaelevador2:
-	sw	$s0, destino2
+	j	pedidoatendido
 	
-	j controle
+atribuielevador2:
+	la	$s3, lista2
+	lw	$s4, tamanholista2
+	
+	lw	$t2, fluxo1
+	add	$t2, $t0, $s2			#t2 = flux02 + fluxo
+	beq	$t2, $zero, finaldalista	#se os fluxos são inversos o elevador2 será responsável por atender ao finalizar sua lista
+	blt	$t2, $zero, lista2decrescente
+lista2crescente:
+	move	$a0, $s3		#a0 recebe o endereço da lista
+	move	$a1, $s4		#a1 recebe o tamanho da lista
+	move	$a3, $s0		#a3 recebe o elemento a ser incluído na lista
+	jal	adicionalistacrescente
+	move	$a3, $s1
+	jal	adicionalistacrescente
+	
+	j	pedidoatendido
+lista2decrescente:
+	move	$a0, $s3
+	move	$a1, $s4
+	move	$a3, $s0
+	jal	adicionalistadecrescente
+	move	$a3, $s1
+	jal	adicionalistadecrescente
+	
+	j	pedidoatendido
+finaldalista:
+	sll	$s4, $s4, 2
+	add	$s3, $s3, $s4
+	sw	$s0, 0($s3)
+	sw	$s1, 4($s3)
+
+pedidoatendido:
+	li	$t0, 1
+	sw	$t0, pronto
+	j	looppedido
+
+# ======= PROCEDIMENTOS =======
+adicionalistacrescente:
+	li	$t9, 0		#contador para percorrer a lista
+	lw	$t8, 0($a0)
+	bgt	$a3, $t8, condicional1
+	sw	$a3, 0($a0)
+	move	$a3, $t8
+condicional1:
+	addi	$a0, $a0, 4
+	addi	$t9, $t9, 1
+	blt	$t9, $a1, adicionalistacrescente
+	jr	$ra
+	
+adicionalistadecrescente:
+	li	$t9, 0		#contador para percorrer a lista
+	lw	$t8, 0($a0)
+	blt	$a3, $t8, condicional2
+	sw	$a3, 0($a0)
+	move	$a3, $t8
+condicional2:
+	addi	$a0, $a0, 4
+	addi	$t9, $t9, 1
+	blt	$t9, $a1, adicionalistadecrescente
+	jr	$ra

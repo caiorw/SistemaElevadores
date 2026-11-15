@@ -16,7 +16,7 @@ espera_fluxo:
 	lw	$t0, fluxo1
 	beq	$t0, $zero, espera_fluxo	#espera o controlador mudar o fluxo (enquanto 0 está parado)
 	bgt	$t0, $zero, subir_e1		# fluxo > 0
-	j	descer_e1			#fluxo < 0
+	j	descer_e1			# fluxo < 0
 
 #sobe um andar por vez até chegar ou passar do destino
 subir_e1:
