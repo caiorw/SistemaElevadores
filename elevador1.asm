@@ -23,7 +23,8 @@ subir_e1:
 	lw	$s0, destino1		#relê o destino a cada andar (o controlador pode mudar)
 	lw	$t1, andar1		#carrega andar atual
 	bge	$t1, $s0, chegou	#andar >= destino: cheguei ou passei, para aqui
-
+	
+	li 	$a3, 4000
 	jal	tempo_espera		#4 segundos entre um andar e outro
 	lw	$t1, andar1
 	addi	$t1, $t1, 1
@@ -36,7 +37,8 @@ descer_e1:
 	lw	$s0, destino1		#relê o destino a cada andar (o controlador pode mudar)
 	lw	$t1, andar1		#carrega andar atual
 	ble	$t1, $s0, chegou	#andar <= destino: cheguei ou passei, para aqui
-
+	
+	li 	$a3, 4000
 	jal	tempo_espera		#4 segundos entre um andar e outro
 	lw	$t1, andar1
 	addi	$t1, $t1, -1
@@ -55,8 +57,17 @@ chegou:
 	li	$v0, 4
 	la	$a0, pula
 	syscall
-
-	jal	tempo_espera		#+ 4 segundos para abrir e fechar a porta
+	
+	li	$s2, 4			#s2 = quantas piscadas faltam
+pisca:
+	sb	$zero, 0($s1)		#apaga o display (nenhum segmento aceso)
+	li	$a3, 500
+	jal	tempo_espera		#meio segundo apagado
+	jal	mostrar_andar		#acende o andar de novo
+	li	$a3, 500
+	jal	tempo_espera		#meio segundo aceso
+	addi	$s2, $s2, -1
+	bgtz	$s2, pisca
 
 	sw	$zero, fluxo1		#avisa o controlador que o elevador parou e está livre
 	j	espera_fluxo
@@ -75,7 +86,7 @@ tempo_espera:
 	li	$v0, 30
 	syscall
 	move	$t8, $a0	#low order (t8 = tempo que o procedimento iniciou)
-	li	$t7, 4000	#usado para a comparação (4 segundos entre 1 andar e outro)
+	move	$t7, $a3	#quanto esperar (em ms)
 loop_espera:
 	li	$v0, 30
 	syscall

@@ -46,44 +46,55 @@ looppedido:
 	lw	$s1, entrega
 	lw	$s2, fluxo
 	
-	lw	$t0, fluxo1
-	lw	$t1, fluxo2
-	bne	$t1, $zero, avaliaelevador1
-	bne	$t0, $zero, avaliaelevador1
-	#chega aqui se ambos elevadores estão parados
-	lw	$t0, andar1
-	sub	$t0, $t0, $s0
-	abs	$t0, $t0			#distância do elevador 1 para a coleta
-	
-	lw	$t1, andar2
-	sub	$t1, $t1, $s0
-	abs	$t1, $t1			#distância do elevador 2 para a coleta
-	
-	blt	$t1, $t0, atribuielevador2
-	j	atribuielevador1
-	
+	# 1o: algum elevador ja vai passar pela coleta, no mesmo sentido? (carona)
+	# 2o: se nenhum vai, escolhe o que termina o trabalho mais perto da coleta.
 avaliaelevador1:
 	lw	$t0, fluxo1
 	lw	$t1, andar1
 	add	$t2, $t0, $s2			#t2 = fluxo1 + fluxo
-	beq	$t2, $zero, avaliaelevador2	#se os fluxos são inversos, E1 não pode ser alocado 
+	beq	$t2, $zero, avaliaelevador2	#se os fluxos são inversos, E1 não pode dar carona
 	sub	$t2, $s0, $t1
 	mul	$t0, $t0, $t2			# $t0 =  (coleta - andar1) * fluxo1
-						
 	bgt	$t0, $zero, atribuielevador1	#se positivo, a coleta está no caminho do elevador
 avaliaelevador2:
 	lw	$t0, fluxo2
 	lw	$t1, andar2
+	add	$t2, $t0, $s2			#t2 = fluxo2 + fluxo
+	beq	$t2, $zero, escolhe_por_distancia	#se os fluxos são inversos, E2 não pode dar carona
 	sub	$t2, $s0, $t1
 	mul	$t0, $t0, $t2			# $t0 =  (coleta - andar2) * fluxo2
 	bgt	$t0, $zero, atribuielevador2	#se positivo, a coleta está no caminho do elevador
 
-# Se chegou aqui, sabemos do seguinte:
-# I- O fluxo do pedido é contrário ao fluxo do elevador 1 OU o elevador 1 já passou do andar da coleta
-# II- O elevador 2 já passou do andar da coleta
-# A execução continuará a partir daqui, e o elevador 1 receberá este pedido
-# OBS: não verificamos se o fluxo do pedido é contrário ao fluxo do elevador 2 pois o pedido precisa ser atendido por algum deles
- 
+escolhe_por_distancia:
+	# Nenhum elevador da carona: vai o que termina o trabalho mais perto da coleta.
+	# Fim do trabalho = ultimo item da lista, ou o andar atual se a lista estiver vazia.
+	lw	$t0, tamanholista1
+	lw	$t2, andar1			# lista vazia: termina onde esta
+	beqz	$t0, distancia1
+	la	$t1, lista1
+	addi	$t0, $t0, -1
+	sll	$t0, $t0, 2
+	add	$t1, $t1, $t0
+	lw	$t2, 0($t1)			# lista1[tamanho - 1]
+distancia1:
+	sub	$t2, $t2, $s0
+	abs	$t2, $t2			# distancia do fim do E1 ate a coleta
+
+	lw	$t0, tamanholista2
+	lw	$t3, andar2
+	beqz	$t0, distancia2
+	la	$t1, lista2
+	addi	$t0, $t0, -1
+	sll	$t0, $t0, 2
+	add	$t1, $t1, $t0
+	lw	$t3, 0($t1)			# lista2[tamanho - 1]
+distancia2:
+	sub	$t3, $t3, $s0
+	abs	$t3, $t3			# distancia do fim do E2 ate a coleta
+
+	blt	$t3, $t2, atribuielevador2	# E2 termina mais perto
+					# empate ou E1 mais perto: segue para o E1
+
 atribuielevador1:
 	la	$s3, lista1
 	la	$s4, tamanholista1
