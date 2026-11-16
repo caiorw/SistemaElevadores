@@ -47,7 +47,7 @@
 # a segunda, thread_v, dita os labels de cada thread. Podem haver labels repetidos
 # (duas threads com mesmo código), dependendo da aplicação pode ser algo útil...
 
-.eqv max_th 3
+.eqv max_th 4
 .eqv thread_v teclado, controle, elevador1, elevador2
 
 ##################################################################################### #############

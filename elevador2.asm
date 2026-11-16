@@ -2,7 +2,7 @@
 .globl		elevador2, andar2, fluxo2
 .data
 	digitos:	.byte 63,6,91,79,102,109,125,7,127,111	#guarda valores que acendem o display de 7 segmentos em ordem (0 a 9)
-	chegada:	.asciiz	"Elevador 2 parou no andar: "
+	chegada:	.asciiz	"#ELEVADORES# Elevador 2 parou no andar: "
 	pula:		.asciiz	"\n"
 	andar2:		.word 0
 	fluxo2:		.word 0	#-1 = para baixo, 0 = parado, 1 = para cima
@@ -13,7 +13,7 @@ elevador2:
 	jal	mostrar_andar		#mostra o andar inicial (uma vez só)
 
 espera_fluxo:
-	lw	$t0, fluxo1
+	lw	$t0, fluxo2
 	beq	$t0, $zero, espera_fluxo	#espera o controlador mudar o fluxo (enquanto 0 está parado)
 	bgt	$t0, $zero, subir_e2		# fluxo > 0
 	j	descer_e2			#fluxo < 0
@@ -33,7 +33,7 @@ subir_e2:
 
 #desce um andar por vez até chegar ou passar do destino
 descer_e2:
-	lw	$s0, destino1		#relê o destino a cada andar (o controlador pode mudar)
+	lw	$s0, destino2		#relê o destino a cada andar (o controlador pode mudar)
 	lw	$t1, andar2		#carrega andar atual
 	ble	$t1, $s0, chegou	#andar <= destino: cheguei ou passei, para aqui
 

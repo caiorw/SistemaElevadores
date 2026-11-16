@@ -2,7 +2,7 @@
 .globl		elevador1, andar1, fluxo1
 .data
 	digitos:	.byte 63,6,91,79,102,109,125,7,127,111	#guarda valores que acendem o display de 7 segmentos em ordem (0 a 9)
-	chegada:	.asciiz	"Elevador 1 parou no andar: "
+	chegada:	.asciiz	"#ELEVADORES# Elevador 1 parou no andar: "
 	pula:		.asciiz	"\n"
 	andar1:		.word 0
 	fluxo1:		.word 0	#-1 = para baixo, 0 = parado, 1 = para cima

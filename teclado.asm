@@ -2,15 +2,15 @@
 .globl		teclado, coleta, fluxo, entrega, pronto
 .data
 	codigos_andar:	.byte 0x11, 0x21, 0x41, 0x81, 0x12, 0x22, 0x42, 0x82	# teclas 0..7
-	aviso_txt:	.asciiz	"Teclas invalidas, tente novamente.\n"
-	pede_origem:	.asciiz	"\nEscolha o andar onde voce esta (0 a 7).\n"
-	origem_ok:	.asciiz	"Andar "
+	aviso_txt:	.asciiz	"#REGISTRO# Teclas invalidas, tente novamente.\n"
+	pede_origem:	.asciiz	"\n#REGISTRO# Escolha o andar onde voce esta (0 a 7).\n"
+	origem_ok:	.asciiz	"#REGISTRO# Andar "
 	pede_direcao:	.asciiz	" ok. Escolha c (ir para cima) ou b (ir para baixo).\n"
-	nao_direcao:	.asciiz	"Essa tecla nao e c nem b. Escolha c (ir para cima) ou b (ir para baixo).\n"
-	subindo_txt:	.asciiz	"Subindo. Escolha o andar de destino.\n"
-	descendo_txt:	.asciiz	"Descendo. Escolha o andar de destino.\n"
-	nao_andar:	.asciiz	"Essa tecla nao e um andar. Escolha o destino (0 a 7).\n"
-	origem_txt:	.asciiz	"Chamada -> origem: "
+	nao_direcao:	.asciiz	"#REGISTRO# Essa tecla nao e c nem b. Escolha c (ir para cima) ou b (ir para baixo).\n"
+	subindo_txt:	.asciiz	"#REGISTRO# Subindo. Escolha o andar de destino.\n"
+	descendo_txt:	.asciiz	"#REGISTRO# Descendo. Escolha o andar de destino.\n"
+	nao_andar:	.asciiz	"#REGISTRO# Essa tecla nao e um andar. Escolha o destino (0 a 7).\n"
+	origem_txt:	.asciiz	"#REGISTRO# Chamada -> origem: "
 	fluxo_txt:	.asciiz	", fluxo: "
 	destino_txt:	.asciiz	", destino: "
 	pula:		.asciiz	"\n"
