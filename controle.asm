@@ -8,6 +8,8 @@
 	tamanholista1:	.word 0
 	tamanholista2:	.word 0
 	avisou_cheio:	.word 0
+	viajando1:	.word 0	# 1 = o controle mandou o elevador e ele ainda nao chegou
+	viajando2:	.word 0
 	lotado_txt:	.asciiz	"Elevador lotado. Aguarde, o pedido sera atendido assim que houver espaco.\n"
 	# variáveis globais a disposição: 
 	# 	coleta (definido em teclado)
@@ -65,7 +67,6 @@ avaliaelevador1:
 	lw	$t1, andar1
 	add	$t2, $t0, $s2			#t2 = fluxo1 + fluxo
 	beq	$t2, $zero, avaliaelevador2	#se os fluxos são inversos, E1 não pode ser alocado 
-						#@TODO -> e se o último destino coincidir com a coleta? avaliar isso?
 	sub	$t2, $s0, $t1
 	mul	$t0, $t0, $t2			# $t0 =  (coleta - andar1) * fluxo1
 						
@@ -92,10 +93,16 @@ atribuielevador1:
 	li	$t1, 16
 	bgt	$t0, $t1, lista_cheia
 	
+	# carona: so se o elevador esta andando, no mesmo sentido do pedido, e a coleta esta a frente.
+	# em qualquer outro caso o pedido vai para o fim da lista.
 	lw	$t2, fluxo1
-	add	$t2, $t2, $s2
-	beq	$t2, $zero, finaldalista	#se os fluxos são inversos o elevador1 será responsável por atender ao finalizar sua lista
-	blt	$t2, $zero, lista1decrescente
+	beqz	$t2, finaldalista		#elevador parado: entra no fim da lista
+	bne	$t2, $s2, finaldalista		#fluxo oposto: atende ao finalizar a lista
+	lw	$t1, andar1
+	sub	$t3, $s0, $t1
+	mul	$t3, $t3, $t2			# (coleta - andar1) * fluxo1
+	blez	$t3, finaldalista		#coleta nao esta a frente: fim da lista
+	blt	$t2, $zero, lista1decrescente	#carona descendo
 lista1crescente:
 	move	$a0, $s3		#a0 recebe o endereço da lista
 	move	$a1, $s4		#a1 recebe o endereço do tamanho da lista
@@ -126,10 +133,16 @@ atribuielevador2:
 	li	$t1, 16
 	bgt	$t0, $t1, lista_cheia
 	
+	# carona: so se o elevador esta andando, no mesmo sentido do pedido, e a coleta esta a frente.
+	# em qualquer outro caso o pedido vai para o fim da lista.
 	lw	$t2, fluxo2
-	add	$t2, $t2, $s2			#t2 = flux02 + fluxo
-	beq	$t2, $zero, finaldalista	#se os fluxos são inversos o elevador2 será responsável por atender ao finalizar sua lista
-	blt	$t2, $zero, lista2decrescente
+	beqz	$t2, finaldalista		#elevador parado: entra no fim da lista
+	bne	$t2, $s2, finaldalista		#fluxo oposto: atende ao finalizar a lista
+	lw	$t1, andar2
+	sub	$t3, $s0, $t1
+	mul	$t3, $t3, $t2			# (coleta - andar2) * fluxo2
+	blez	$t3, finaldalista		#coleta nao esta a frente: fim da lista
+	blt	$t2, $zero, lista2decrescente	#carona descendo
 lista2crescente:
 	move	$a0, $s3		#a0 recebe o endereço da lista
 	move	$a1, $s4		#a1 recebe o endereço do tamanho da lista
@@ -174,49 +187,186 @@ lista_cheia:				# não zera o pronto: o pedido continua esperando
 	sw	$t0, avisou_cheio
 
 cuidar_elevadores:
-	# @todo: cuidar do elevador 1
-	# @todo: cuidar do elevador 2
+	# label funil para deixar codigo mais legível
+cuidar_elevador1:
+	# o primeiro item da lista é sempre o destino atual: ele so sai da lista quando o elevador chega nele
+	# assim uma carona inserida na frente vira o novo destino durante a viagem
+	lw	$t1, tamanholista1
+	beqz	$t1, cuidar_elevador2		# lista vazia: elevador sem tarefa
+	lw	$t0, fluxo1
+	beqz	$t0, e1_parado		# fluxo == 0: chegou (ou estava livre)
+
+	# andando: se a primeira parada esta a frente, ela vira o destino
+	lw	$t2, lista1		# lista1[0]
+	lw	$t3, andar1
+	sub	$t4, $t2, $t3
+	mul	$t4, $t4, $t0		# (lista1[0] - andar1) * fluxo1
+	blez	$t4, cuidar_elevador2		# nao esta a frente: mantem o destino atual
+	sw	$t2, destino1		# o elevador rele o destino a cada andar
+	j	cuidar_elevador2
+
+e1_parado:
+	lw	$t5, viajando1
+	beqz	$t5, e1_primeira	# estava livre: so manda para a primeira parada
+	sw	$zero, viajando1	# acabou de chegar
+e1_remove:			# tira da lista as paradas atendidas neste andar
+	lw	$t1, tamanholista1
+	beqz	$t1, cuidar_elevador2		# atendeu tudo: elevador livre
+	lw	$t2, lista1		# lista1[0]
+	lw	$t3, andar1
+	bne	$t2, $t3, e1_envia	# proxima parada e outro andar: manda o elevador
+	la	$a0, lista1
+	la	$a1, tamanholista1
+	jal	diminui_lista
+	j	e1_remove		# pode haver mais de uma parada neste andar
+
+e1_primeira:			# mesmo que seja o andar atual: o elevador abre a porta
+	lw	$t2, lista1
+	lw	$t3, andar1
+e1_envia:			# $t2 = proxima parada, $t3 = andar atual
+	sw	$t2, destino1		# primeiro o destino...
+	li	$t0, 1
+	bgt	$t2, $t3, e1_fluxo	# destino > andar atual: sobe
+	li	$t0, -1			# senao desce (vale tambem para destino == andar)
+e1_fluxo:
+	sw	$t0, fluxo1		# ...depois o sinal de partida
+	li	$t0, 1
+	sw	$t0, viajando1	# lembra que mandou: o proximo fluxo == 0 e uma chegada
+	j	cuidar_elevador2
+
+cuidar_elevador2:
+	# o primeiro item da lista é sempre o destino atual: ele so sai da lista quando o elevador chega nele
+	# assim uma carona inserida na frente vira o novo destino durante a viagem
+	lw	$t1, tamanholista2
+	beqz	$t1, looppedido		# lista vazia: elevador sem tarefa
+	lw	$t0, fluxo2
+	beqz	$t0, e2_parado		# fluxo == 0: chegou (ou estava livre)
+
+	# andando: se a primeira parada esta a frente, ela vira o destino
+	lw	$t2, lista2		# lista2[0]
+	lw	$t3, andar2
+	sub	$t4, $t2, $t3
+	mul	$t4, $t4, $t0		# (lista2[0] - andar2) * fluxo2
+	blez	$t4, looppedido		# nao esta a frente: mantem o destino atual
+	sw	$t2, destino2		# o elevador rele o destino a cada andar
+	j	looppedido
+
+e2_parado:
+	lw	$t5, viajando2
+	beqz	$t5, e2_primeira	# estava livre: so manda para a primeira parada
+	sw	$zero, viajando2	# acabou de chegar
+e2_remove:			# tira da lista as paradas atendidas neste andar
+	lw	$t1, tamanholista2
+	beqz	$t1, looppedido		# atendeu tudo: elevador livre
+	lw	$t2, lista2		# lista2[0]
+	lw	$t3, andar2
+	bne	$t2, $t3, e2_envia	# proxima parada e outro andar: manda o elevador
+	la	$a0, lista2
+	la	$a1, tamanholista2
+	jal	diminui_lista
+	j	e2_remove		# pode haver mais de uma parada neste andar
+
+e2_primeira:			# mesmo que seja o andar atual: o elevador abre a porta
+	lw	$t2, lista2
+	lw	$t3, andar2
+e2_envia:			# $t2 = proxima parada, $t3 = andar atual
+	sw	$t2, destino2		# primeiro o destino...
+	li	$t0, 1
+	bgt	$t2, $t3, e2_fluxo	# destino > andar atual: sobe
+	li	$t0, -1			# senao desce (vale tambem para destino == andar)
+e2_fluxo:
+	sw	$t0, fluxo2		# ...depois o sinal de partida
+	li	$t0, 1
+	sw	$t0, viajando2	# lembra que mandou: o proximo fluxo == 0 e uma chegada
 	j	looppedido
 
 # ======= PROCEDIMENTOS =======
+# crescente: entra antes do primeiro item >= valor, ou no ponto em que a
+# ordem da lista quebra (lista[i] < lista[i-1]). Depois desse ponto estao os pedidos
+# de fluxo oposto, que nao podem ser misturados com a carona.
+# $a0 = endereco da lista, $a1 = endereco do tamanho, $a3 = valor
 adicionalistacrescente:
-	li	$t9, 0		#contador para percorrer a lista
-	lw	$t7, 0($a1)	# carrega tamanho da lista (a1 é o endereço)
-posinicializacao_alc:	# bloco para não ficar resetando contador
-	bge	$t9, $t7, fim_alc	#testa se lista ta vazia OU contador chegou no fim da lista. Caso esteja vazia, so adiciona item e vai embora
-	lw	$t8, 0($a0)	# t8 = elemento do iterador da lista
-	bgt	$a3, $t8, condicional1
-	
-	sw	$a3, 0($a0)	# se for menor, guarda naquela posição da lista
-	move	$a3, $t8	# passa antiga posição p frente
-condicional1:
-	addi	$a0, $a0, 4	# avança na lista
-	addi	$t9, $t9, 1	# avança contador
-	j	posinicializacao_alc
-fim_alc:
-	sw	$a3, 0($a0)
+	lw	$t7, 0($a1)		# tamanho
+	li	$t9, 0			# i = posicao onde o valor vai entrar
+alc_busca:
+	bge	$t9, $t7, alc_abre	# chegou ao fim da lista
+	sll	$t8, $t9, 2
+	add	$t8, $a0, $t8		# $t8 = &lista[i]
+	lw	$t6, 0($t8)		# lista[i]
+	bge	$t6, $a3, alc_abre	# achou a posicao
+	beqz	$t9, alc_proximo	# i == 0: nao tem anterior
+	lw	$t5, -4($t8)		# lista[i-1]
+	blt	$t6, $t5, alc_abre	# a ordem quebrou: a parte do fluxo atual acabou
+alc_proximo:
+	addi	$t9, $t9, 1
+	j	alc_busca
+alc_abre:			# desloca lista[i..fim] uma posicao para a direita
+	move	$t5, $t7		# j = tamanho
+alc_desloca:
+	ble	$t5, $t9, alc_grava
+	sll	$t8, $t5, 2
+	add	$t8, $a0, $t8		# $t8 = &lista[j]
+	lw	$t6, -4($t8)
+	sw	$t6, 0($t8)		# lista[j] = lista[j-1]
+	addi	$t5, $t5, -1
+	j	alc_desloca
+alc_grava:
+	sll	$t8, $t9, 2
+	add	$t8, $a0, $t8
+	sw	$a3, 0($t8)		# lista[i] = valor
 	addi	$t7, $t7, 1
-	sw	$t7, 0($a1)	# atualiza tamanho da lista
+	sw	$t7, 0($a1)		# atualiza tamanho da lista
 	jr	$ra
 
-
-
+# decrescente: entra antes do primeiro item <= valor, ou no ponto em que a
+# ordem da lista quebra (lista[i] > lista[i-1]). Depois desse ponto estao os pedidos
+# de fluxo oposto, que nao podem ser misturados com a carona.
+# $a0 = endereco da lista, $a1 = endereco do tamanho, $a3 = valor
 adicionalistadecrescente:
-	li	$t9, 0		#contador para percorrer a lista
-	lw	$t7, 0($a1)	# carrega tamanho da lista (a1 é o endereço)
-posinicializacao_ald:	# bloco para não ficar resetando contador
-	bge	$t9, $t7, fim_ald	#testa se lista ta vazia OU contador chegou no fim da lista. Caso esteja vazia, so adiciona item e vai embora
-	lw	$t8, 0($a0)	# t8 = elemento do iterador da lista
-	blt	$a3, $t8, condicional2
-	
-	sw	$a3, 0($a0)	# se for maior ou igual, guarda naquela posição da lista
-	move	$a3, $t8	# passa antiga posição p frente
-condicional2:
-	addi	$a0, $a0, 4	# avança na lista
-	addi	$t9, $t9, 1	# avança contador
-	j	posinicializacao_ald
-fim_ald:
-	sw	$a3, 0($a0)
+	lw	$t7, 0($a1)		# tamanho
+	li	$t9, 0			# i = posicao onde o valor vai entrar
+ald_busca:
+	bge	$t9, $t7, ald_abre	# chegou ao fim da lista
+	sll	$t8, $t9, 2
+	add	$t8, $a0, $t8		# $t8 = &lista[i]
+	lw	$t6, 0($t8)		# lista[i]
+	ble	$t6, $a3, ald_abre	# achou a posicao
+	beqz	$t9, ald_proximo	# i == 0: nao tem anterior
+	lw	$t5, -4($t8)		# lista[i-1]
+	bgt	$t6, $t5, ald_abre	# a ordem quebrou: a parte do fluxo atual acabou
+ald_proximo:
+	addi	$t9, $t9, 1
+	j	ald_busca
+ald_abre:			# desloca lista[i..fim] uma posicao para a direita
+	move	$t5, $t7		# j = tamanho
+ald_desloca:
+	ble	$t5, $t9, ald_grava
+	sll	$t8, $t5, 2
+	add	$t8, $a0, $t8		# $t8 = &lista[j]
+	lw	$t6, -4($t8)
+	sw	$t6, 0($t8)		# lista[j] = lista[j-1]
+	addi	$t5, $t5, -1
+	j	ald_desloca
+ald_grava:
+	sll	$t8, $t9, 2
+	add	$t8, $a0, $t8
+	sw	$a3, 0($t8)		# lista[i] = valor
 	addi	$t7, $t7, 1
-	sw	$t7, 0($a1)	# atualiza tamanho da lista
+	sw	$t7, 0($a1)		# atualiza tamanho da lista
+	jr	$ra
+
+diminui_lista:
+	lw	$t0, 0($a1)	# carrega tamanho da lista
+	
+	addi	$t0, $t0, -1	# diminui tamanho da lista
+	sw	$t0, 0($a1)	# atualiza na memoria
+	li	$t2, 0		#contador = 0
+loop_dl:
+	bge	$t2, $t0, fim_dl
+	lw	$t1, 4($a0)		# lista[i+1]
+	sw	$t1, 0($a0)		# lista[i] = lista[i+1]
+	addi	$a0, $a0, 4
+	addi	$t2, $t2, 1
+	j	loop_dl
+fim_dl:
 	jr	$ra
