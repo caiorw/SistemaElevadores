@@ -48,7 +48,7 @@
 # (duas threads com mesmo código), dependendo da aplicação pode ser algo útil...
 
 .eqv max_th 3
-.eqv thread_v controle, elevador1, elevador2
+.eqv thread_v teclado, controle, elevador1, elevador2
 
 ##################################################################################### #############
 

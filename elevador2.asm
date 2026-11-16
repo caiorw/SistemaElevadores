@@ -29,12 +29,12 @@ subir_e2:
 	addi	$t1, $t1, 1
 	sw	$t1, andar2		#mantem andar2 atualizado
 	jal	mostrar_andar
-	j	subir_e1		#volta e pergunta de novo
+	j	subir_e2		#volta e pergunta de novo
 
 #desce um andar por vez até chegar ou passar do destino
-descer_e1:
+descer_e2:
 	lw	$s0, destino1		#relê o destino a cada andar (o controlador pode mudar)
-	lw	$t1, andar1		#carrega andar atual
+	lw	$t1, andar2		#carrega andar atual
 	ble	$t1, $s0, chegou	#andar <= destino: cheguei ou passei, para aqui
 
 	jal	tempo_espera		#4 segundos entre um andar e outro
